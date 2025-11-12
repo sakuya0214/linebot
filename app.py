@@ -6,9 +6,10 @@ import os
 app = Flask(__name__)
 
 # ======== 配置（從環境變數讀取） ========
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
-DEEPL_AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY")
+# ✅ 這裡三個金鑰建議放在 Render 環境變數，不要硬編寫
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("QlyDbhy8kPfh15MUZlJyIXu43OQIBT5rSDzWCxAMelTgCmHlCM7HlHpuPD4zhmbS5Ga+W0cmW7SGPZEo7PrCNv rCmHE3dK6IkuVhUbI8zRjUwAf3+ZW7xXsCX25nj8IQ74icKofMdEzzNDc9QIZs8gdB04t89/1O/w1cDnyilFU=")  # ← 自己在 Render 設
+LINE_CHANNEL_SECRET = os.environ.get("3e557ae4660d67a1768eb76640cec0d1")              # ← 自己在 Render 設
+DEEPL_AUTH_KEY = os.environ.get("648881f3-2f5e-4a29-8d64-8d566de02bd1:fx")                        # ← 自己在 Render 設
 
 DEEPL_URL = "https://api-free.deepl.com/v2/translate"
 
@@ -25,7 +26,7 @@ def translate_text(text):
         target_lang = "ZH"  # 印尼文 → 中文
 
     data = {
-        "auth_key": DEEPL_AUTH_KEY,
+        "auth_key": DEEPL_AUTH_KEY,  # ← 使用自己設的 DeepL API Key
         "text": text,
         "target_lang": target_lang
     }
@@ -37,7 +38,7 @@ def translate_text(text):
 def line_reply(reply_token, original_text, translated_text):
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}"
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}"  # ← 使用自己設的 LINE Access Token
     }
     formatted_text = f"原文：{original_text}\n翻譯：{translated_text}"
     payload = {
@@ -53,12 +54,9 @@ def callback():
     events = body.get("events", [])
 
     for event in events:
-        # 僅處理文字訊息
         if event["type"] == "message" and event["message"]["type"] == "text":
             user_text = event["message"]["text"]
-
-            # 群組內訊息全部自動翻譯
-            if event["source"]["type"] == "group":
+            if event["source"]["type"] == "group":  # ← 可改成 'user' 處理私聊訊息
                 translated = translate_text(user_text)
                 reply_token = event["replyToken"]
                 line_reply(reply_token, user_text, translated)
@@ -66,4 +64,5 @@ def callback():
     return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
+    # ⚠️ 這裡本地測試可以用 app.run，Render 上線會用 gunicorn 啟動
     app.run(host="0.0.0.0", port=5000)
