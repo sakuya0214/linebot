@@ -7,9 +7,9 @@ app = Flask(__name__)
 
 # ======== 配置（從環境變數讀取） ========
 # ✅ 這裡三個金鑰建議放在 Render 環境變數，不要硬編寫
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("QlyDbhy8kPfh15MUZlJyIXu43OQIBT5rSDzWCxAMelTgCmHlCM7HlHpuPD4zhmbS5Ga+W0cmW7SGPZEo7PrCNv rCmHE3dK6IkuVhUbI8zRjUwAf3+ZW7xXsCX25nj8IQ74icKofMdEzzNDc9QIZs8gdB04t89/1O/w1cDnyilFU=")  # ← 自己在 Render 設
-LINE_CHANNEL_SECRET = os.environ.get("3e557ae4660d67a1768eb76640cec0d1")              # ← 自己在 Render 設
-DEEPL_AUTH_KEY = os.environ.get("648881f3-2f5e-4a29-8d64-8d566de02bd1:fx")                        # ← 自己在 Render 設
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")  # ← 自己在 Render 設
+LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")              # ← 自己在 Render 設
+DEEPL_AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY")                        # ← 自己在 Render 設
 
 DEEPL_URL = "https://api-free.deepl.com/v2/translate"
 
@@ -38,7 +38,7 @@ def translate_text(text):
 def line_reply(reply_token, original_text, translated_text):
     headers = {
         "Content-Type": "application/json",
-        "Authorization": f"Bearer {QlyDbhy8kPfh15MUZlJyIXu43OQIBT5rSDzWCxAMelTgCmHlCM7HlHpuPD4zhmbS5Ga+W0cmW7SGPZEo7PrCNv rCmHE3dK6IkuVhUbI8zRjUwAf3+ZW7xXsCX25nj8IQ74icKofMdEzzNDc9QIZs8gdB04t89/1O/w1cDnyilFU=}"  # ← 使用自己設的 LINE Access Token
+        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}"  # ← 使用自己設的 LINE Access Token
     }
     formatted_text = f"原文：{original_text}\n翻譯：{translated_text}"
     payload = {
@@ -66,4 +66,3 @@ def callback():
 if __name__ == "__main__":
     # ⚠️ 這裡本地測試可以用 app.run，Render 上線會用 gunicorn 啟動
     app.run(host="0.0.0.0", port=5000)
-
