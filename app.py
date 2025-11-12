@@ -1,13 +1,14 @@
 from flask import Flask, request, jsonify
 import requests
 from langdetect import detect
+import os
 
 app = Flask(__name__)
 
-# ======== 配置 ========
-LINE_CHANNEL_ACCESS_TOKEN = "QlyDbhy8kPfh15MUZlJyIXu43OQIBT5rSDzWCxAMelTgCmHlCM7HlHpuPD4zhmbS5Ga+W0cmW7SGPZEo7PrCNvrCmHE3dK6IkuVhUbI8zRjUwAf3+ZW7xXsCX25nj8IQ74icKofMdEzzNDc9QIZs8gdB04t89/1O/w1cDnyilFU="
-LINE_CHANNEL_SECRET = "3e557ae4660d67a1768eb76640cec0d1"
-DEEPL_AUTH_KEY = "648881f3-2f5e-4a29-8d64-8d566de02bd1:fx"
+# ======== 配置（從環境變數讀取） ========
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
+LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
+DEEPL_AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY")
 
 DEEPL_URL = "https://api-free.deepl.com/v2/translate"
 
