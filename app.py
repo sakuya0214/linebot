@@ -4,23 +4,37 @@ import os
 
 app = Flask(__name__)
 
-# ======== 配置（從環境變數讀取） ========
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")  # Render 環境變數
+# ======== 環境變數設定 ========
+LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
 DEEPL_AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY")
 
 DEEPL_URL = "https://api-free.deepl.com/v2/translate"
 
-# ======== 翻譯函數（使用 DeepL 自動偵測語言） ========
-def translate_text(text, target_lang="ZH"):  # 預設翻譯成中文
+# ======== 自訂字典 ========
+custom_dict = {
+    "伊達": "Indah",
+    "依達": "Indah"
+}
+
+def apply_custom_dict(text):
+    for k, v in custom_dict.items():
+        text = text.replace(k, v)
+    return text
+
+# ======== 翻譯函數 ========
+def translate_text(text, target_lang="ZH"):
     if not text.strip():
         return text  # 空訊息直接回原文
     try:
+        # 先套用自訂字典
+        text_with_dict = apply_custom_dict(text)
+
+        # DeepL 翻譯
         data = {
             "auth_key": DEEPL_AUTH_KEY,
-            "text": text,
+            "text": text_with_dict,
             "target_lang": target_lang
-            # DeepL 會自動偵測來源語言
         }
         response = requests.post(DEEPL_URL, data=data)
         response.raise_for_status()
@@ -29,7 +43,7 @@ def translate_text(text, target_lang="ZH"):  # 預設翻譯成中文
         return translated
     except Exception as e:
         print("Translate error:", e)
-        return "無法翻譯"  # 出錯時回覆「無法翻譯」
+        return "無法翻譯"  # 出錯時回覆
 
 # ======== LINE 回覆函數 ========
 def line_reply(reply_token, original_text, translated_text):
@@ -52,19 +66,17 @@ def line_reply(reply_token, original_text, translated_text):
 @app.route("/callback", methods=['POST'])
 def callback():
     body = request.get_json()
-    print("Webhook received:", body)  # Debug: 查看 webhook 事件
+    print("Webhook received:", body)  # Debug log
     events = body.get("events", [])
 
     for event in events:
-        # 僅處理文字訊息
         if event["type"] == "message" and event["message"]["type"] == "text":
             user_text = event["message"]["text"].strip()
             if not user_text:
                 continue  # 空訊息跳過
 
-            # 群組內訊息自動翻譯
             if event["source"]["type"] == "group":
-                # 自動偵測來源語言
+                # 判斷翻譯方向
                 if user_text.isascii():
                     target_lang = "ZH"  # 英文或 ASCII → 中文
                 else:
@@ -78,5 +90,4 @@ def callback():
     return jsonify({"status": "ok"}), 200
 
 if __name__ == "__main__":
-    # 本地測試用
     app.run(host="0.0.0.0", port=5000)
