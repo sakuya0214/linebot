@@ -4,7 +4,7 @@ from langdetect import detect
 
 app = Flask(__name__)
 
-# ======== 配置 ========
+# ======== 配置 ========　
 LINE_CHANNEL_ACCESS_TOKEN = "QlyDbhy8kPfh15MUZlJyIXu43OQIBT5rSDzWCxAMelTgCmHlCM7HlHpuPD4zhmbS5Ga+W0cmW7SGPZEo7PrCNvrCmHE3dK6IkuVhUbI8zRjUwAf3+ZW7xXsCX25nj8IQ74icKofMdEzzNDc9QIZs8gdB04t89/1O/w1cDnyilFU="
 LINE_CHANNEL_SECRET = "3e557ae4660d67a1768eb76640cec0d1"
 DEEPL_AUTH_KEY = "648881f3-2f5e-4a29-8d64-8d566de02bd1:fx"
@@ -66,3 +66,4 @@ def callback():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
+
