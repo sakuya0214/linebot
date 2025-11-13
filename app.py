@@ -1,15 +1,18 @@
 from flask import Flask, request, jsonify
 import requests
 import os
+from googletrans import Translator
 
 app = Flask(__name__)
 
-# ======== 環境變數設定 ========
+# ======== 環境變數 ========
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
 DEEPL_AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY")
 
 DEEPL_URL = "https://api-free.deepl.com/v2/translate"
+
+translator = Translator()
 
 # ======== 自訂字典（只套中文） ========
 def apply_custom_dict(text, target_lang):
@@ -22,13 +25,9 @@ def apply_custom_dict(text, target_lang):
             text = text.replace(k, v)
     return text
 
-# ======== 翻譯函數 ========
-def translate_text(text, target_lang):
-    if not text.strip():
-        return text
-
+# ======== DeepL 翻中文 ========
+def translate_with_deepl(text, target_lang="ZH-TW"):
     text_with_dict = apply_custom_dict(text, target_lang)
-
     try:
         data = {
             "auth_key": DEEPL_AUTH_KEY,
@@ -40,16 +39,26 @@ def translate_text(text, target_lang):
         result = response.json()
         translated = result["translations"][0]["text"]
 
-        # 如果翻譯結果空或等於輸入文字，判斷為無法翻譯
         if not translated.strip() or translated == text_with_dict:
             return "無法翻譯"
 
         return translated
     except Exception as e:
-        print("Translate error:", e)
+        print("DeepL translate error:", e)
         return "無法翻譯"
 
-# ======== LINE 回覆函數 ========
+# ======== Google 翻印尼文 ========
+def translate_with_google(text, src_lang="id", dest_lang="zh-tw"):
+    try:
+        translated = translator.translate(text, src=src_lang, dest=dest_lang).text
+        if not translated.strip() or translated == text:
+            return "無法翻譯"
+        return translated
+    except Exception as e:
+        print("Google translate error:", e)
+        return "無法翻譯"
+
+# ======== LINE 回覆 ========
 def line_reply(reply_token, original_text, translated_text):
     headers = {
         "Content-Type": "application/json",
@@ -82,11 +91,12 @@ def callback():
             if event["source"]["type"] == "group":
                 # 判斷翻譯方向
                 if user_text.isascii():
-                    target_lang = "ZH-TW"  # 英文或 ASCII → 繁體中文
+                    # ASCII → DeepL 翻繁體中文
+                    translated = translate_with_deepl(user_text, "ZH-TW")
                 else:
-                    target_lang = "ID"     # 非 ASCII → 印尼文
+                    # 非 ASCII → Google 翻繁體中文（假設來源是印尼文）
+                    translated = translate_with_google(user_text, src_lang="id", dest_lang="zh-tw")
 
-                translated = translate_text(user_text, target_lang)
                 reply_token = event["replyToken"]
                 line_reply(reply_token, user_text, translated)
                 print("Replied:", translated)
