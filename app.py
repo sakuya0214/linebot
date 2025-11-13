@@ -1,93 +1,54 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, abort
+from linebot import LineBotApi, WebhookHandler
+from linebot.exceptions import InvalidSignatureError
+from linebot.models import MessageEvent, TextMessage, TextSendMessage
 import requests
 import os
 
 app = Flask(__name__)
 
-# ======== 環境變數 ========
-LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
-LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
-DEEPL_AUTH_KEY = os.environ.get("DEEPL_AUTH_KEY")
+LINE_CHANNEL_SECRET = os.environ["LINE_CHANNEL_SECRET"]
+LINE_CHANNEL_ACCESS_TOKEN = os.environ["LINE_CHANNEL_ACCESS_TOKEN"]
+DEEPL_API_KEY = os.environ["DEEPL_API_KEY"]
 
-DEEPL_URL = "https://api-free.deepl.com/v2/translate"
+line_bot_api = LineBotApi(LINE_CHANNEL_ACCESS_TOKEN)
+handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
-# ======== 自訂字典 ========
-custom_dict = {
-    "伊達": "Indah",
-    "依達": "Indah"
-}
-
-def apply_custom_dict(text):
-    for k, v in custom_dict.items():
-        text = text.replace(k, v)
-    return text
-
-# ======== 翻譯函數 ========
-def translate_text(text, target_lang="ZH-TW"):  # 繁體中文
-    if not text.strip():
-        return text
-    try:
-        # 先套用自訂字典
-        text_with_dict = apply_custom_dict(text)
-
-        # DeepL 翻譯
-        data = {
-            "auth_key": DEEPL_AUTH_KEY,
-            "text": text_with_dict,
-            "target_lang": target_lang
-        }
-        response = requests.post(DEEPL_URL, data=data)
-        response.raise_for_status()
-        result = response.json()
-        translated = result["translations"][0]["text"]
-        return translated
-    except Exception as e:
-        print("Translate error:", e)
-        return "無法翻譯"
-
-# ======== LINE 回覆函數 ========
-def line_reply(reply_token, original_text, translated_text):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {LINE_CHANNEL_ACCESS_TOKEN}"
+def translate(text, target_lang):
+    url = "https://api-free.deepl.com/v2/translate"
+    data = {
+        "auth_key": DEEPL_API_KEY,
+        "text": text,
+        "target_lang": target_lang
     }
-    formatted_text = f"原文：{original_text}\n翻譯：{translated_text}"
-    payload = {
-        "replyToken": reply_token,
-        "messages": [{"type": "text", "text": formatted_text}]
-    }
-    try:
-        res = requests.post("https://api.line.me/v2/bot/message/reply", headers=headers, json=payload)
-        print("LINE reply status:", res.status_code, res.text)
-    except Exception as e:
-        print("LINE reply error:", e)
+    resp = requests.post(url, data=data).json()
+    return resp["translations"][0]["text"]
 
-# ======== Webhook ========
+def detect_lang(text):
+    # 簡單判斷中印
+    if any('\u4e00' <= c <= '\u9fff' for c in text):
+        return "ZH", "ID"
+    else:
+        return "ID", "ZH"
+
 @app.route("/callback", methods=['POST'])
 def callback():
-    body = request.get_json()
-    print("Webhook received:", body)
-    events = body.get("events", [])
+    signature = request.headers['X-Line-Signature']
+    body = request.get_data(as_text=True)
+    try:
+        handler.handle(body, signature)
+    except InvalidSignatureError:
+        abort(400)
+    return 'OK'
 
-    for event in events:
-        if event["type"] == "message" and event["message"]["type"] == "text":
-            user_text = event["message"]["text"].strip()
-            if not user_text:
-                continue
-
-            if event["source"]["type"] == "group":
-                # 判斷翻譯方向
-                if user_text.isascii():
-                    target_lang = "ZH-TW"  # 英文或 ASCII → 繁體中文
-                else:
-                    target_lang = "ID"      # 非 ASCII → 印尼文
-
-                translated = translate_text(user_text, target_lang)
-                reply_token = event["replyToken"]
-                line_reply(reply_token, user_text, translated)
-                print("Replied:", translated)
-
-    return jsonify({"status": "ok"}), 200
+@handler.add(MessageEvent, message=TextMessage)
+def handle_message(event):
+    src_lang, tgt_lang = detect_lang(event.message.text)
+    translated = translate(event.message.text, target_lang=tgt_lang)
+    line_bot_api.reply_message(
+        event.reply_token,
+        TextSendMessage(text=translated)
+    )
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run()
