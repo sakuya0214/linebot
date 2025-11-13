@@ -45,10 +45,10 @@ async function translateText(text) {
 }
 
 // ===== Webhook =====
-// 使用 raw body 處理，保留 HMAC 驗證正確
-app.post('/callback', express.raw({ type: 'application/json' }), middleware(config), async (req, res) => {
+// 使用 middleware(config) 解析 body，保持 HMAC 驗證正確
+app.post('/callback', middleware(config), async (req, res) => {
     try {
-        const events = JSON.parse(req.body.toString()).events;
+        const events = req.body.events;
 
         for (let event of events) {
             if (event.type === 'message' && event.message.type === 'text' && event.source.type === 'group') {
@@ -63,7 +63,7 @@ app.post('/callback', express.raw({ type: 'application/json' }), middleware(conf
         }
         res.sendStatus(200);
     } catch (err) {
-        console.log("Webhook error:", err.message);
+        console.log("Webhook error:", err);
         res.sendStatus(500);
     }
 });
