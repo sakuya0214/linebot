@@ -1,15 +1,17 @@
 from flask import Flask, request, jsonify
 import os
 from googletrans import Translator
+import requests
 
 app = Flask(__name__)
 
+# ======== 環境變數 ========
 LINE_CHANNEL_ACCESS_TOKEN = os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")
 LINE_CHANNEL_SECRET = os.environ.get("LINE_CHANNEL_SECRET")
 
 translator = Translator()
 
-# 自訂字典（只套中文）
+# ======== 自訂字典（只套中文） ========
 custom_dict = {
     "伊達": "Indah",
     "依達": "Indah"
@@ -21,7 +23,7 @@ def apply_custom_dict(text, target_lang):
             text = text.replace(k, v)
     return text
 
-# 翻譯函數
+# ======== 翻譯函數 ========
 def translate_text(text, target_lang):
     text_with_dict = apply_custom_dict(text, target_lang)
     try:
@@ -33,8 +35,7 @@ def translate_text(text, target_lang):
         print("Translate error:", e)
         return "無法翻譯 😢"
 
-# LINE 回覆函數
-import requests
+# ======== LINE 回覆函數 ========
 def line_reply(reply_token, original_text, translated_text):
     headers = {
         "Content-Type": "application/json",
@@ -47,7 +48,7 @@ def line_reply(reply_token, original_text, translated_text):
     except Exception as e:
         print("LINE reply error:", e)
 
-# Webhook
+# ======== Webhook ========
 @app.route("/callback", methods=['POST'])
 def callback():
     body = request.get_json()
