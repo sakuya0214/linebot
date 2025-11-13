@@ -1,7 +1,4 @@
-flask
+Flask==2.2.5
 requests
-line-bot-sdk
-gunicorn
 googletrans==4.0.0-rc1
-
-
+gunicorn
