@@ -1,4 +1,0 @@
-Flask==2.2.5
-requests
-googletrans==4.0.0-rc1
-gunicorn
