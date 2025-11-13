@@ -22,30 +22,46 @@ function fallbackMessage() {
     return "無法翻譯 😢";
 }
 
-// ===== 翻譯函數 =====
-async function translateText(text) {
+// ===== Google Translate API =====
+async function translate(text, targetLang) {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+    const res = await axios.get(url);
+    return res.data[0][0][0];
+}
+
+// ===== 翻譯 + 校對 =====
+async function translateWithProof(text) {
     if (!text.trim()) return text;
 
     // 套用自訂字典
     let modifiedText = text.replace(/伊達|依達/g, match => customDict[match] || match);
 
     try {
-        let targetLang = /[\u4e00-\u9fff]/.test(text) ? 'id' : 'zh-TW';
-        // Google Translate 免費 API
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(modifiedText)}`;
-        const res = await axios.get(url);
-        const translated = res.data[0][0][0];
+        // 檢測語言：含中文 → 印尼文，否則反過來
+        const toIndo = /[\u4e00-\u9fff]/.test(text);
+        const targetLang = toIndo ? 'id' : 'zh-TW';
+        const backLang = toIndo ? 'zh-TW' : 'id';
 
-        if (!translated || translated === modifiedText) return fallbackMessage();
-        return translated;
+        // 一次翻譯
+        const translated = await translate(modifiedText, targetLang);
+
+        // 二次翻譯（校對）
+        const proofread = await translate(translated, backLang);
+
+        // 判斷是否有效
+        if (!translated || translated === modifiedText) return { translated: fallbackMessage(), proof: fallbackMessage() };
+
+        return {
+            translated,
+            proof: proofread || fallbackMessage()
+        };
     } catch (e) {
         console.log("Translate error:", e.message);
-        return fallbackMessage();
+        return { translated: fallbackMessage(), proof: fallbackMessage() };
     }
 }
 
 // ===== Webhook =====
-// 使用 middleware(config) 解析 body，保持 HMAC 驗證正確
 app.post('/callback', middleware(config), async (req, res) => {
     try {
         const events = req.body.events;
@@ -53,11 +69,11 @@ app.post('/callback', middleware(config), async (req, res) => {
         for (let event of events) {
             if (event.type === 'message' && event.message.type === 'text' && event.source.type === 'group') {
                 const userText = event.message.text;
-                const translated = await translateText(userText);
+                const { translated, proof } = await translateWithProof(userText);
 
                 await client.replyMessage(event.replyToken, {
                     type: 'text',
-                    text: `原文：${userText}\n翻譯：${translated}`
+                    text: `原文：${userText}\n翻譯：${translated}\n校對：${proof}`
                 });
             }
         }
