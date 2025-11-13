@@ -3,7 +3,6 @@ const { Client, middleware } = require('@line/bot-sdk');
 const axios = require('axios');
 
 const app = express();
-app.use(express.json());
 
 // ===== LINE 設定 =====
 const config = {
@@ -18,28 +17,39 @@ const customDict = {
     "依達": "Indah"
 };
 
-// ===== DeepL 或 Google 翻譯函數 =====
+// ===== Fallback 表情訊息 =====
+function fallbackMessage() {
+    return "無法翻譯 😢";
+}
+
+// ===== 翻譯函數 =====
 async function translateText(text) {
-    // 自訂字典套用（只中文）
+    if (!text.trim()) return text;
+
+    // 套用自訂字典
     let modifiedText = text.replace(/伊達|依達/g, match => customDict[match] || match);
 
     try {
-        let targetLang = /[\u4e00-\u9fff]/.test(text) ? 'id' : 'zh';
-        // 這裡用 Google Translate 網頁 API 範例
+        let targetLang = /[\u4e00-\u9fff]/.test(text) ? 'id' : 'zh-TW';
+        // Google Translate 免費 API
         const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=${targetLang}&dt=t&q=${encodeURIComponent(modifiedText)}`;
         const res = await axios.get(url);
         const translated = res.data[0][0][0];
-        return translated || "無法翻譯 😢";
+
+        if (!translated || translated === modifiedText) return fallbackMessage();
+        return translated;
     } catch (e) {
         console.log("Translate error:", e.message);
-        return "無法翻譯 😢";
+        return fallbackMessage();
     }
 }
 
-// ===== LINE Webhook =====
-app.post('/callback', middleware(config), async (req, res) => {
+// ===== Webhook =====
+// 使用 raw body 處理，保留 HMAC 驗證正確
+app.post('/callback', express.raw({ type: 'application/json' }), middleware(config), async (req, res) => {
     try {
-        const events = req.body.events;
+        const events = JSON.parse(req.body.toString()).events;
+
         for (let event of events) {
             if (event.type === 'message' && event.message.type === 'text' && event.source.type === 'group') {
                 const userText = event.message.text;
