@@ -19,7 +19,7 @@ const customDict = {
 
 // ===== Fallback 表情訊息 =====
 function fallbackMessage() {
-    return "無法翻譯 😢";
+    return "無法翻譯😢請稍後再試";
 }
 
 // ===== Google Translate API =====
@@ -87,3 +87,4 @@ app.post('/callback', middleware(config), async (req, res) => {
 // ===== 啟動 server =====
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
